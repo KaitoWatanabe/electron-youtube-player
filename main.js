@@ -162,6 +162,13 @@ var template = [
         click: function() {
           mainWindow.webContents.send('pause_play');
         }
+      },
+      {
+        label: 'Fast forward',
+        accelerator: 'CmdOrCtrl+Right',
+        click: function() {
+          mainWindow.webContents.send('fastForward');
+        }
       }
     ]
 

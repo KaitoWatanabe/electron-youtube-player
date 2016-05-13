@@ -119,3 +119,7 @@ ipcRenderer.on('pause_play', function() {
             break;
     }
 });
+
+ipcRenderer.on('fastForward', function() {
+    player.seekTo(player.getCurrentTime()+10, true);
+});
