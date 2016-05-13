@@ -26,6 +26,18 @@ storage.get('watchedVideoIds', function(error, data) {
     watchedVideoIds = data.videos || [];
 });
 
+storage.get('videos', function(error, data) {
+    if (error) throw error;
+    if (data.videos) {
+        videoIds = data.videos;
+        console.log(videoIds);
+        initVideo();
+    } else {
+        ipcRenderer.send('open-add-video')
+    }
+
+});
+
 var player;
 window.onYouTubeIframeAPIReady = function() {
     iframeReady = true;
@@ -33,6 +45,7 @@ window.onYouTubeIframeAPIReady = function() {
 };
 
 function initVideo() {
+    console.log(videoIds);
     if (videoIds.length > 0 && iframeReady) {
         currentVideo = Math.floor(Math.random() * videoIds.length);
         player = new YT.Player('player', {
@@ -41,10 +54,20 @@ function initVideo() {
             videoId: videoIds[currentVideo],
             events: {
                 'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError
             }
         });
     }
+}
+
+function onPlayerError(event) {
+    console.log(event);
+    videoIds.splice(currentVideo, 1);
+    storage.set('videos', { videos: videoIds }, function(error) {
+        if (error) throw error;
+        nextVideo();
+    });
 }
 
 // 4. The API will call this function when the video player is ready.
@@ -56,6 +79,7 @@ function onPlayerReady(event) {
 //    The function indicates that when playing a video (state=1),
 //    the player should play for six seconds and then stop.
 function onPlayerStateChange(event) {
+    console.log(event.data);
     if (event.data == YT.PlayerState.ENDED) {
         watchedVideoIds.push(videoIds[currentVideo]);
         storage.set('watchedVideoIds', { videos: watchedVideoIds }, function(error) {
@@ -71,21 +95,21 @@ function nextVideo() {
     player.loadVideoById(videoId);
 }
 
-var url = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCzVnCG4ItKitN1SCBM7-AbA';
-request(url, function (error, response, body) {
-    if (!error && response.statusCode == 200) {
-        parseString(body, function (err, result) {
-            videoIds = videoIds.concat(result.feed.entry.filter(function (elem) {
-                return watchedVideoIds.indexOf(elem['yt:videoId'][0]) == -1
-            }).map(function (entry) {
-                return entry['yt:videoId'][0];
-            }));
-            initVideo();
-        });
-    } else {
-        console.log('error: '+ response.statusCode);
-    }
-});
+// var url = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCzVnCG4ItKitN1SCBM7-AbA';
+// request(url, function (error, response, body) {
+//     if (!error && response.statusCode == 200) {
+//         parseString(body, function (err, result) {
+//             videoIds = videoIds.concat(result.feed.entry.filter(function (elem) {
+//                 return watchedVideoIds.indexOf(elem['yt:videoId'][0]) == -1
+//             }).map(function (entry) {
+//                 return entry['yt:videoId'][0];
+//             }));
+//             initVideo();
+//         });
+//     } else {
+//         console.log('error: '+ response.statusCode);
+//     }
+// });
 
 function showClock(){
     console.log('show clock');
@@ -122,4 +146,12 @@ ipcRenderer.on('pause_play', function() {
 
 ipcRenderer.on('fastForward', function() {
     player.seekTo(player.getCurrentTime()+10, true);
+});
+
+ipcRenderer.on('add-video', function() {
+    storage.get('videos', function(error, data) {
+        if (error) throw error;
+        videoIds = data.videos || ['nVN6qfLNIg0'];
+        if (videoIds.length) initVideo();
+    });
 });

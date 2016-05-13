@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Add Video</title>
+</head>
+<body>
+
+<div>
+  <label for="url">video url</label>
+  <input type="text" id="url">
+  <button id="submit">Add</button>
+</div>
+
+<div>
+  <label for="channel">channel url</label>
+  <input type="text" id="channel">
+  <button id="submit-channel">Add</button>
+</div>
+
+<script>
+  const $ = require('jquery');
+  const storage = require('electron-json-storage');
+  const ipcRenderer = require('electron').ipcRenderer;
+  var parseString = require('xml2js').parseString;
+  var request = require('request');
+  var videos;
+  storage.get('videos', function(error, data) {
+    if (error) throw error;
+    videos = data.videos || [];
+  });
+  $('#submit').click(function () {
+    var url = $('#url').val();
+    if(url.match(/.*v=(.*)/)) {
+      videos.push(url.match(/.*v=(.*)/)[1]);
+      storage.set('videos', { videos: videos }, function(error) {
+        if (error) throw error;
+        alert('Add video');
+        ipcRenderer.send('add-video');
+      });
+    } else {
+      alert('Not found');
+    }
+  })
+
+  $('#submit-channel').click(function () {
+    var url = $('#channel').val();
+    if(url.match(/.*channel\/(.*)/)) {
+     var url = 'https://www.youtube.com/feeds/videos.xml?channel_id='+url.match(/.*channel\/(.*)/)[1];
+     request(url, function (error, response, body) {
+       if (!error && response.statusCode == 200) {
+         parseString(body, function (err, result) {
+           var videoIds = videos.concat(
+             result.feed.entry.map(function (entry) {
+               return entry['yt:videoId'][0];
+             })
+           );
+           storage.set('videos', { videos: videoIds }, function(error) {
+             if (error) throw error;
+             alert('Add video');
+             ipcRenderer.send('add-video');
+           });
+         });
+       } else {
+           console.log('error: '+ response.statusCode);
+       }
+     });
+    } else {
+      alert('Not found');
+    }
+  })
+</script>
+</body>
+</html>
