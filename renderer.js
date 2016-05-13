@@ -5,6 +5,9 @@
 var parseString = require('xml2js').parseString;
 var request = require('request');
 const storage = require('electron-json-storage');
+const ipcRenderer = require('electron').ipcRenderer;
+
+
 
 var tag = document.createElement('script');
 tag.src = "https://www.youtube.com/iframe_api";
@@ -58,11 +61,11 @@ function onPlayerStateChange(event) {
         storage.set('watchedVideoIds', { videos: watchedVideoIds }, function(error) {
             if (error) throw error;
         });
+        videoIds.splice(currentVideo, 1);
         nextVideo();
     }
 }
 function nextVideo() {
-    videoIds.splice(currentVideo, 1);
     currentVideo = Math.floor(Math.random() * videoIds.length);
     videoId = videoIds[currentVideo];
     player.loadVideoById(videoId);
@@ -85,13 +88,34 @@ request(url, function (error, response, body) {
 });
 
 function showClock(){
+    console.log('show clock');
     var d = new Date();
     function pad(n){return n<10 ? '0'+n : n}
     document.getElementById('clock').innerText = pad(d.getHours())+':' + pad(d.getMinutes())
 }
 
-setInterval(showClock(), 1000*60)
+setInterval(function () {
+    showClock();
+}, 1000*60);
+
+showClock();
+
 
 window.addEventListener("resize", function () {
     player.setSize(window.innerWidth, window.innerHeight);
 }, false);
+
+ipcRenderer.on('next', function() {
+    nextVideo();
+});
+
+ipcRenderer.on('pause_play', function() {
+    switch (player.getPlayerState()) {
+        case YT.PlayerState.PLAYING:
+            player.pauseVideo();
+            break;
+        case YT.PlayerState.PAUSED:
+            player.playVideo();
+            break;
+    }
+});
